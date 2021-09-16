@@ -18,7 +18,7 @@ func New() *Engine {
 	return &Engine{router: make(map[string]HandlerFunc)}
 }
 
-func (engine *Engine) addRoute(method string, pattern string, handler HandlerFunc) {
+func (engine *Engine) AddRoute(method string, pattern string, handler HandlerFunc) {
 	//将请求方法与路径合并为选定路由的键
 	key := method + "-" + pattern
 	engine.router[key] = handler
@@ -26,12 +26,12 @@ func (engine *Engine) addRoute(method string, pattern string, handler HandlerFun
 
 //GET 定义了添加GET请求的方法
 func (engine *Engine) GET(pattern string, handler HandlerFunc) {
-	engine.addRoute("GET", pattern, handler)
+	engine.AddRoute("GET", pattern, handler)
 }
 
 //POST 定义了添加POST请求的方法
 func (engine *Engine) POST(pattern string, handler HandlerFunc) {
-	engine.addRoute("POST", pattern, handler)
+	engine.AddRoute("POST", pattern, handler)
 }
 
 func (engine *Engine) Run(addr string) (err error) {
