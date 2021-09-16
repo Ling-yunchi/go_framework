@@ -19,6 +19,7 @@ func New() *Engine {
 }
 
 func (engine *Engine) addRoute(method string, pattern string, handler HandlerFunc) {
+	//将请求方法与路径合并为选定路由的键
 	key := method + "-" + pattern
 	engine.router[key] = handler
 }
