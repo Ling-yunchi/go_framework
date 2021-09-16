@@ -22,8 +22,8 @@ type Context struct {
 	StatusCode int
 }
 
-//NewContext 是 Context 的构造器
-func NewContext(w http.ResponseWriter, req *http.Request) *Context {
+//newContext 是 Context 的构造器
+func newContext(w http.ResponseWriter, req *http.Request) *Context {
 	return &Context{
 		Witer:  w,
 		Req:    req,
@@ -36,6 +36,7 @@ func (c *Context) PostForm(key string) string {
 	return c.Req.FormValue(key)
 }
 
+//Query 查询url中的参数
 func (c *Context) Query(key string) string {
 	return c.Req.URL.Query().Get(key)
 }
@@ -62,11 +63,19 @@ func (c *Context) String(code int, format string, values ...interface{}) {
 func (c *Context) JSON(code int, obj interface{}) {
 	c.SetHeader("Content-Type", "application/json")
 	c.Status(code)
-
 	//编码器
 	encoder := json.NewEncoder(c.Witer)
+	defer func() {
+		if err := recover(); err != nil {
+			http.Error(c.Witer, "Webserve Error: "+err.(string), 500)
+		}
+	}()
+	//Context.ResponseWriter中的Set/WriteHeader/Write这三个方法时
+	//顺序必须为Set/WriteHeader/Write
+	//此处错误处理很不方便,无法重新设置状态码
+	//Gin中直接抛出panic
 	if err := encoder.Encode(obj); err != nil {
-		http.Error(c.Witer, err.Error(), 500)
+		panic(err.Error())
 	}
 }
 
