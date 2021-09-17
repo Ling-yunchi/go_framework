@@ -3,6 +3,7 @@ package wego
 import (
 	"log"
 	"net/http"
+	"strings"
 )
 
 //HandlerFunc 被引擎使用的请求处理器的类型
@@ -64,8 +65,22 @@ func (engine *Engine) Run(addr string) (err error) {
 	return http.ListenAndServe(addr, engine)
 }
 
+//Use 为当前组添加需要使用的中间件
+func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
+	group.middlewares = append(group.middlewares, middlewares...)
+}
+
 func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var middlewares []HandlerFunc
+	for _, group := range engine.groups {
+		//只要存在组对应的前缀,则将组对应的中间件加入该上下文需要使用的中间件
+		//组的嵌套使用中间件在此处实现
+		if strings.HasPrefix(req.URL.Path, group.prefix) {
+			middlewares = append(middlewares, group.middlewares...)
+		}
+	}
 	//封装后转交给router处理
 	c := newContext(w, req)
+	c.handlers = middlewares
 	engine.router.handle(c)
 }

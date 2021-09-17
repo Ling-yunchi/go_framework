@@ -1,7 +1,6 @@
 package wego
 
 import (
-	"log"
 	"net/http"
 	"strings"
 )
@@ -40,7 +39,6 @@ func parsePattern(pattern string) []string {
 
 //addRoute 添加路由规则
 func (r *router) addRoute(method string, pattern string, handler HandlerFunc) {
-	log.Printf("Route %4s - %s", method, pattern)
 	parts := parsePattern(pattern)
 	key := method + "-" + pattern
 	if _, ok := r.roots[method]; !ok {
@@ -92,10 +90,13 @@ func (r *router) handle(c *Context) {
 	if n != nil {
 		c.Params = params
 		key := c.Method + "-" + n.pattern
-		log.Printf("Request %s\n", key)
-		r.handlers[key](c)
+		//将最终处理请求的handler加入c的handler列表中
+		c.handlers = append(c.handlers, r.handlers[key])
 	} else {
-		log.Printf("Request %s NOT FOUND\n", c.Method+"-"+c.Path)
-		c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
+		c.handlers = append(c.handlers, func(context *Context) {
+			c.String(http.StatusNotFound, "404 NOT FOUND: %s\n", c.Path)
+		})
 	}
+	//开始执行handlers
+	c.Next()
 }
