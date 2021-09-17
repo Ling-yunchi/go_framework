@@ -100,11 +100,6 @@ func (c *Context) JSON(code int, obj interface{}) {
 	c.Status(code)
 	//编码器
 	encoder := json.NewEncoder(c.Writer)
-	defer func() {
-		if err := recover(); err != nil {
-			http.Error(c.Writer, "Webserver Error: "+err.(string), 500)
-		}
-	}()
 	//Context.ResponseWriter中的Set/WriteHeader/Write这三个方法时
 	//顺序必须为Set/WriteHeader/Write
 	//此处错误处理很不方便,无法重新设置状态码

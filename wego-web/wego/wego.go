@@ -32,6 +32,13 @@ func New() *Engine {
 	return engine
 }
 
+//Default 构造的engine使用默认的Logger与Recovery中间件
+func Default() *Engine {
+	engine := New()
+	engine.Use(Logger(), Recovery())
+	return engine
+}
+
 //Group 用于在当前group下创建一个新的子RouterGroup
 //所有的group共享同一个 Engine instance
 func (group *RouterGroup) Group(prefix string) *RouterGroup {
