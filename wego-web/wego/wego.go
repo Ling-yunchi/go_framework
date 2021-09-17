@@ -11,9 +11,8 @@ type HandlerFunc func(*Context)
 //Engine 实现了ServeHTTP的接口
 type (
 	RouterGroup struct {
-		prefix      string
+		prefix      string        //支持嵌套
 		middlewares []HandlerFunc //支持中间件
-		parent      *RouterGroup  //支持嵌套
 		engine      *Engine       //所有的组使用同一个Engine实例
 	}
 
@@ -38,7 +37,6 @@ func (group *RouterGroup) Group(prefix string) *RouterGroup {
 	engine := group.engine
 	newGroup := &RouterGroup{
 		prefix: group.prefix + prefix,
-		parent: group,
 		engine: engine,
 	}
 	engine.groups = append(engine.groups, newGroup)
