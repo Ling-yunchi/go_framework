@@ -8,6 +8,8 @@ var dialectMap = map[string]Dialect{}
 type Dialect interface {
 	//DataTypeOf 将 Go 语言的类型转换为该数据库的数据类型
 	DataTypeOf(typ reflect.Value) string
+	//DatabaseName 将 Go 对象的字段名转换成符合数据库命名规范的字段名
+	DatabaseName(name string) string
 	//TableExistSQL 返回某个表是否存在的 SQL 语句
 	TableExistSQL(tableName string) (string, []interface{})
 }

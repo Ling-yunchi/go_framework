@@ -34,16 +34,18 @@ func Parse(dest interface{}, d dialect.Dialect) *Schema {
 	modelType := reflect.Indirect(reflect.ValueOf(dest)).Type()
 	schema := &Schema{
 		Model:    dest,
-		Name:     modelType.Name(), //将结构体名作为表名
+		Name:     d.DatabaseName(modelType.Name()), //将结构体名作为表名
 		fieldMap: make(map[string]*Field),
 	}
 	//分析结构体内的属性
 	for i := 0; i < modelType.NumField(); i++ {
 		p := modelType.Field(i)
+		//将结构体字段名转换为数据库风格的字段名
+		databaseName := d.DatabaseName(p.Name)
 		if !p.Anonymous && ast.IsExported(p.Name) {
 			//若该字段非匿名字段且被导出(访问权限为public,go中使用首字母大小写区分是否导出),则将该字段存入表结构
 			field := &Field{
-				Name: p.Name,
+				Name: databaseName,
 				Type: d.DataTypeOf(reflect.Indirect(reflect.New(p.Type))),
 			}
 			//分析字段所带注解tag
@@ -51,8 +53,8 @@ func Parse(dest interface{}, d dialect.Dialect) *Schema {
 				field.Tag = v
 			}
 			schema.Fields = append(schema.Fields, field)
-			schema.FieldNames = append(schema.FieldNames, p.Name)
-			schema.fieldMap[p.Name] = field
+			schema.FieldNames = append(schema.FieldNames, databaseName)
+			schema.fieldMap[databaseName] = field
 		}
 	}
 	return schema
