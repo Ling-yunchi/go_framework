@@ -3,17 +3,24 @@ package session
 import (
 	"database/sql"
 	"strings"
+	"weorm/dialect"
 	"weorm/log"
+	"weorm/schema"
 )
 
 type Session struct {
-	db      *sql.DB
-	sql     strings.Builder //拼接sql语句
-	sqlVars []interface{}   //sql语句占位符中的变量值
+	db       *sql.DB
+	dialect  dialect.Dialect //sql方言
+	refTable *schema.Schema  //表结构
+	sql      strings.Builder //拼接sql语句
+	sqlVars  []interface{}   //sql语句占位符中的变量值
 }
 
-func New(db *sql.DB) *Session {
-	return &Session{db: db}
+func New(db *sql.DB, dialect dialect.Dialect) *Session {
+	return &Session{
+		db:      db,
+		dialect: dialect,
+	}
 }
 
 func (s *Session) Clear() {

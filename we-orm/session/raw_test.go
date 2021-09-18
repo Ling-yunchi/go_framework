@@ -5,6 +5,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"os"
 	"testing"
+	"weorm/dialect"
 )
 
 var TestDB *sql.DB
@@ -17,7 +18,8 @@ func TestMain(m *testing.M) {
 }
 
 func NewSession() *Session {
-	return New(TestDB)
+	dialect, _ := dialect.GetDialect("mysql")
+	return New(TestDB, dialect)
 }
 
 func TestSession_Exec(t *testing.T) {
