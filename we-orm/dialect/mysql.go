@@ -1,10 +1,10 @@
 package dialect
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 	"time"
+	"weorm/dialect/utils"
 )
 
 type mysql struct{}
@@ -60,37 +60,48 @@ func (s *mysql) TableExistSQL(tableName string) (string, []interface{}) {
 }
 
 func (s *mysql) DatabaseName(name string) string {
+	//if name == "" {
+	//	return ""
+	//}
+	//str := make([]byte, 0, 32)
+	//i := 0
+	//if name[0] == '_' {
+	//	str = append(str, 'X')
+	//	i++
+	//}
+	//for ; i < len(name); i++ {
+	//	c := name[i]
+	//	if c == '_' &&
+	//		i+1 < len(name) &&
+	//		('A' <= name[i+1] && name[i+1] <= 'Z') {
+	//		continue
+	//	}
+	//	if '0' <= c && c <= '9' {
+	//		str = append(str, c)
+	//		continue
+	//	}
+	//
+	//	if 'A' <= c && c <= 'Z' {
+	//		c ^= ' '
+	//	}
+	//	str = append(str, c)
+	//
+	//	for i+1 < len(name) && ('A' <= name[i+1] && name[i+1] <= 'Z') {
+	//		i++
+	//		str = append(str, '_')
+	//		str = append(str, bytes.ToLower([]byte{name[i]})[0])
+	//	}
+	//}
+	//return string(str)
 	if name == "" {
 		return ""
 	}
-	str := make([]byte, 0, 32)
-	i := 0
-	if name[0] == '_' {
-		str = append(str, 'X')
-		i++
-	}
-	for ; i < len(name); i++ {
-		c := name[i]
-		if c == '_' &&
-			i+1 < len(name) &&
-			('A' <= name[i+1] && name[i+1] <= 'Z') {
-			continue
-		}
-		if '0' <= c && c <= '9' {
-			str = append(str, c)
-			continue
-		}
+	return utils.CamelCaseToUnderscore(name)
+}
 
-		if 'A' <= c && c <= 'Z' {
-			c ^= ' '
-		}
-		str = append(str, c)
-
-		for i+1 < len(name) && ('A' <= name[i+1] && name[i+1] <= 'Z') {
-			i++
-			str = append(str, '_')
-			str = append(str, bytes.ToLower([]byte{name[i]})[0])
-		}
+func (s *mysql) GoName(name string) string {
+	if name == "" {
+		return ""
 	}
-	return string(str)
+	return utils.UnderscoreToUpperCamelCase(name)
 }

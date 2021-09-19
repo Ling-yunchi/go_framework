@@ -29,12 +29,27 @@ func (s *Schema) GetField(name string) *Field {
 	return s.fieldMap[name]
 }
 
+//ITableName 若表实现该接口即可自定义表名
+type ITableName interface {
+	TableName() string
+}
+
 func Parse(dest interface{}, d dialect.Dialect) *Schema {
 	//获取结构体类型
 	modelType := reflect.Indirect(reflect.ValueOf(dest)).Type()
+
+	//判断是否自定义表名
+	var tableName string
+	t, ok := dest.(ITableName)
+	if !ok {
+		tableName = d.DatabaseName(modelType.Name())
+	} else {
+		tableName = t.TableName()
+	}
+
 	schema := &Schema{
 		Model:    dest,
-		Name:     d.DatabaseName(modelType.Name()), //将结构体名作为表名
+		Name:     tableName, //将结构体名作为表名
 		fieldMap: make(map[string]*Field),
 	}
 	//分析结构体内的属性
@@ -58,4 +73,14 @@ func Parse(dest interface{}, d dialect.Dialect) *Schema {
 		}
 	}
 	return schema
+}
+
+//RecordValues 将传入对象按schema对应规则解析,将值与字段相对应
+func (s *Schema) RecordValues(dest interface{}, dialect dialect.Dialect) []interface{} {
+	destValue := reflect.Indirect(reflect.ValueOf(dest))
+	var fieldValues []interface{}
+	for _, field := range s.Fields {
+		fieldValues = append(fieldValues, destValue.FieldByName(dialect.GoName(field.Name)).Interface())
+	}
+	return fieldValues
 }

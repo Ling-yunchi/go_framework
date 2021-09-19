@@ -3,6 +3,7 @@ package session
 import (
 	"database/sql"
 	"strings"
+	"weorm/clause"
 	"weorm/dialect"
 	"weorm/log"
 	"weorm/schema"
@@ -12,6 +13,7 @@ type Session struct {
 	db       *sql.DB
 	dialect  dialect.Dialect //sql方言
 	refTable *schema.Schema  //表结构
+	clause   clause.Clause   //用于生成sql语句
 	sql      strings.Builder //拼接sql语句
 	sqlVars  []interface{}   //sql语句占位符中的变量值
 }
