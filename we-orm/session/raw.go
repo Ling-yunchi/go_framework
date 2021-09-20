@@ -12,11 +12,23 @@ import (
 type Session struct {
 	db       *sql.DB
 	dialect  dialect.Dialect //sql方言
+	tx       *sql.Tx         //支持事务
 	refTable *schema.Schema  //表结构
 	clause   clause.Clause   //用于生成sql语句
 	sql      strings.Builder //拼接sql语句
 	sqlVars  []interface{}   //sql语句占位符中的变量值
 }
+
+//CommonDB 是DataBase的最小函数集合
+type CommonDB interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
+//检查sql.DB与sql.Tx是否实现CommonDB
+var _ CommonDB = (*sql.DB)(nil)
+var _ CommonDB = (*sql.Tx)(nil)
 
 func New(db *sql.DB, dialect dialect.Dialect) *Session {
 	return &Session{
@@ -32,7 +44,11 @@ func (s *Session) Clear() {
 	s.clause = clause.Clause{}
 }
 
-func (s *Session) DB() *sql.DB {
+//DB 返回 *sql.DB,如果事务已经开始,则返回 *sql.Tx
+func (s *Session) DB() CommonDB {
+	if s.tx != nil {
+		return s.tx
+	}
 	return s.db
 }
 
