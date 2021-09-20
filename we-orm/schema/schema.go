@@ -29,8 +29,8 @@ func (s *Schema) GetField(name string) *Field {
 	return s.fieldMap[name]
 }
 
-//ITableName 若表实现该接口即可自定义表名
-type ITableName interface {
+//TableName 若表实现该接口即可自定义表名
+type TableName interface {
 	TableName() string
 }
 
@@ -40,7 +40,7 @@ func Parse(dest interface{}, d dialect.Dialect) *Schema {
 
 	//判断是否自定义表名
 	var tableName string
-	t, ok := dest.(ITableName)
+	t, ok := dest.(TableName)
 	if !ok {
 		tableName = d.DatabaseName(modelType.Name())
 	} else {

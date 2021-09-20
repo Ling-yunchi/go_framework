@@ -16,6 +16,7 @@ func (s *Session) Insert(values ...interface{}) (int64, error) {
 
 	recordValues := make([]interface{}, 0)
 	for _, value := range values {
+		s.CallMethod(BInsert, value)
 		if table != s.Model(value).RefTable() {
 			log.Error("It is not allowed to insert different objects at a table")
 		}
@@ -29,11 +30,13 @@ func (s *Session) Insert(values ...interface{}) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	s.CallMethod(AInsert, nil)
 	return result.RowsAffected()
 }
 
 //Find 传入一个切片指针,查询结构保存在切片中
 func (s *Session) Find(values interface{}) error {
+	s.CallMethod(BQuery, nil)
 	//通过反射获取到values的实例
 	destSlice := reflect.Indirect(reflect.ValueOf(values))
 	//获得实例的type
@@ -59,6 +62,8 @@ func (s *Session) Find(values interface{}) error {
 		if err := rows.Scan(values...); err != nil {
 			return err
 		}
+
+		s.CallMethod(AQuery, dest.Addr().Interface())
 		//将 dest 添加到切片 destSlice 中。循环直到所有的记录都添加到切片 destSlice 中
 		destSlice.Set(reflect.Append(destSlice, dest))
 	}
@@ -67,6 +72,7 @@ func (s *Session) Find(values interface{}) error {
 
 //Update 接受 2 种入参，平铺开来的键值对和 map 类型的键值对
 func (s *Session) Update(kv ...interface{}) (int64, error) {
+	s.CallMethod(BUpdate, nil)
 	m, ok := kv[0].(map[string]interface{})
 	if !ok {
 		m = make(map[string]interface{})
@@ -80,17 +86,20 @@ func (s *Session) Update(kv ...interface{}) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	s.CallMethod(AUpdate, nil)
 	return result.RowsAffected()
 }
 
 // Delete records with where clause
 func (s *Session) Delete() (int64, error) {
+	s.CallMethod(BDelete, nil)
 	s.clause.Set(clause.DELETE, s.RefTable().Name)
 	sql, vars := s.clause.Build(clause.DELETE, clause.WHERE)
 	result, err := s.Raw(sql, vars...).Exec()
 	if err != nil {
 		return 0, err
 	}
+	s.CallMethod(ADelete, nil)
 	return result.RowsAffected()
 }
 
