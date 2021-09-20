@@ -28,6 +28,8 @@ func New(db *sql.DB, dialect dialect.Dialect) *Session {
 func (s *Session) Clear() {
 	s.sql.Reset()
 	s.sqlVars = nil
+	//清空sql构造器
+	s.clause = clause.Clause{}
 }
 
 func (s *Session) DB() *sql.DB {
