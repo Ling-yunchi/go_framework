@@ -3,25 +3,30 @@ package werpc
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 	"werpc/codec"
 )
 
 const MagicNumber = 0x3bef5c
 
 type Option struct {
-	MagicNumber int        //MagicNumber 标识这是一个WeRPC请求
-	CodecType   codec.Type //客户端可能选择不同的方式来编码body
+	MagicNumber    int        //MagicNumber 标识这是一个WeRPC请求
+	CodecType      codec.Type //客户端可能选择不同的方式来编码body
+	ConnectTimeout time.Duration
+	HandleTimeout  time.Duration
 }
 
 var DefaultOption = &Option{
-	MagicNumber: MagicNumber,
-	CodecType:   codec.GobType,
+	MagicNumber:    MagicNumber,
+	CodecType:      codec.GobType,
+	ConnectTimeout: time.Second * 10,
 }
 
 //涉及协议协商的这部分信息，需要设计固定的字节来传输的。
@@ -83,13 +88,13 @@ func (s *Server) ServerConn(conn io.ReadWriteCloser) {
 		return
 	}
 	//转交给serveCodec处理
-	s.serveCodec(codecFunc(conn))
+	s.serveCodec(codecFunc(conn), &opt)
 }
 
 // invalidRequest is a placeholder for response argv when error occurs
 var invalidRequest = struct{}{}
 
-func (s *Server) serveCodec(cc codec.Codec) {
+func (s *Server) serveCodec(cc codec.Codec, opt *Option) {
 	sending := new(sync.Mutex) //确保发送完整的response
 	wg := new(sync.WaitGroup)  //等待所有请求被处理
 	//在一次连接中，允许接收多个请求,使用for不断循环等待请求
@@ -108,7 +113,7 @@ func (s *Server) serveCodec(cc codec.Codec) {
 		//处理请求
 		wg.Add(1)
 		//使用协程并发执行请求
-		go s.handleRequest(cc, req, sending, wg)
+		go s.handleRequest(cc, req, sending, wg, opt.HandleTimeout)
 	}
 	wg.Wait()
 	_ = cc.Close()
@@ -165,16 +170,39 @@ func (s *Server) sendResponse(cc codec.Codec, header *codec.Header, body interfa
 	}
 }
 
-func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex, wg *sync.WaitGroup) {
+func (s *Server) handleRequest(cc codec.Codec, req *request, sending *sync.Mutex, wg *sync.WaitGroup, timeout time.Duration) {
 	//处理请求是并发的，但是回复请求的报文必须是逐个发送的，并发容易导致多个回复报文交织在一起，客户端无法解析。在这里使用锁(sending)保证
 	defer wg.Done()
-	err := req.svc.call(req.mtype, req.argValue, req.replyValue)
-	if err != nil {
-		req.h.Error = err.Error()
-		s.sendResponse(cc, req.h, invalidRequest, sending)
+	called := make(chan struct{})
+	sent := make(chan struct{})
+	go func() {
+		err := req.svc.call(req.mtype, req.argValue, req.replyValue)
+		called <- struct{}{}
+		if err != nil {
+			req.h.Error = err.Error()
+			s.sendResponse(cc, req.h, invalidRequest, sending)
+			sent <- struct{}{}
+			return
+		}
+		s.sendResponse(cc, req.h, req.replyValue.Interface(), sending)
+		sent <- struct{}{}
+	}()
+
+	if timeout == 0 {
+		<-called
+		<-sent
 		return
 	}
-	s.sendResponse(cc, req.h, req.replyValue.Interface(), sending)
+	select {
+	case <-time.After(timeout):
+		//time.After() 先于 called 接收到消息，说明处理已经超时，called 和 sent 都将被阻塞。
+		//在 case <-time.After(timeout) 处调用 sendResponse
+		req.h.Error = fmt.Sprintf("rpc server: request handle timeout: expect within %s", timeout)
+		s.sendResponse(cc, req.h, invalidRequest, sending)
+	case <-called:
+		//called 信道接收到消息，代表处理没有超时，继续执行 sendResponse
+		<-sent
+	}
 }
 
 func (s *Server) Register(rcvr interface{}) error {
