@@ -25,6 +25,8 @@ type Context struct {
 	//中间件
 	handlers []HandlerFunc
 	index    int
+	//engine 指针
+	engine *Engine
 }
 
 //newContext 是 Context 的构造器
@@ -120,3 +122,32 @@ func (c *Context) HTML(code int, html string) {
 	c.Status(code)
 	c.Writer.Write([]byte(html))
 }
+
+func (c *Context) HTMLTemplate(code int, name string, data interface{}) {
+	c.SetHeader("Content-Type", "text/html")
+	c.Status(code)
+	if err := c.engine.htmlTemplates.ExecuteTemplate(c.Writer, name, data); err != nil {
+		c.Fail(http.StatusInternalServerError, err.Error())
+	}
+}
+
+func (c *Context) Cookie(name string) (*http.Cookie, error) {
+	return c.Req.Cookie(name)
+}
+
+func (c *Context) SetCookie(name, value string, maxAge int, path string, domain string, secure bool, httpOnly bool) {
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     path,
+		Domain:   domain,
+		MaxAge:   maxAge,
+		Secure:   secure,
+		HttpOnly: httpOnly,
+	}
+	http.SetCookie(c.Writer, cookie)
+}
+
+//func (c *Context) Redirect(code int, url string) {
+//
+//}

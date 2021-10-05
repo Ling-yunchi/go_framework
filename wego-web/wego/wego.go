@@ -1,8 +1,10 @@
 package wego
 
 import (
+	"html/template"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -18,9 +20,11 @@ type (
 	}
 
 	Engine struct {
-		*RouterGroup //继承RouterGroup,将Engine抽象为最高层的RouterGroup
-		router       *router
-		groups       []*RouterGroup //存储所有的groups
+		*RouterGroup  //继承RouterGroup,将Engine抽象为最高层的RouterGroup
+		router        *router
+		groups        []*RouterGroup     //存储所有的groups
+		htmlTemplates *template.Template //http模板
+		funcMap       template.FuncMap   //html模板渲染函数
 	}
 )
 
@@ -89,5 +93,40 @@ func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	//封装后转交给router处理
 	c := newContext(w, req)
 	c.handlers = middlewares
+	c.engine = engine
 	engine.router.handle(c)
+}
+
+func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileSystem) HandlerFunc {
+	//解析请求的地址，映射到服务器上文件的真实地址，交给http.FileServer处理
+	absolutePath := path.Join(group.prefix, relativePath)
+	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
+	return func(c *Context) {
+		file := c.Param("filePath")
+		//检查文件是否存在或是否有权限读取
+		if _, err := fs.Open(file); err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		fileServer.ServeHTTP(c.Writer, c.Req)
+	}
+}
+
+//Static 将服务器上的静态资源映射到url中
+//	Static("/assets", "/static")
+//	访问/asserts/xxxfile 即可返回 /static/xxxfile
+func (group *RouterGroup) Static(relativePath string, root string) {
+	handler := group.createStaticHandler(relativePath, http.Dir(root))
+	urlPattern := path.Join(relativePath, "/*filepath")
+	//注册GET处理器
+	group.GET(urlPattern, handler)
+}
+
+func (engine *Engine) SetFuncMap(funcMap template.FuncMap) {
+	engine.funcMap = funcMap
+}
+
+func (engine *Engine) LoadHTMLGlob(pattern string) {
+	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.funcMap).ParseGlob(pattern))
 }
